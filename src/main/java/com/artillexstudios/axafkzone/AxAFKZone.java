@@ -20,6 +20,7 @@ import com.artillexstudios.axapi.libs.boostedyaml.settings.updater.UpdaterSettin
 import com.artillexstudios.axapi.metrics.AxMetrics;
 import com.artillexstudios.axapi.utils.MessageUtils;
 import com.artillexstudios.axapi.utils.featureflags.FeatureFlags;
+import com.artillexstudios.axapi.utils.logging.LoggerNameFormat;
 import org.bstats.bukkit.Metrics;
 
 import java.io.File;
@@ -29,17 +30,26 @@ public final class AxAFKZone extends AxPlugin {
     public static Config LANG;
     public static MessageUtils MESSAGEUTILS;
     private static AxPlugin instance;
-    private static ThreadedQueue<Runnable> threadedQueue;
     private static AxMetrics metrics;
-
-    public static ThreadedQueue<Runnable> getThreadedQueue() {
-        return threadedQueue;
-    }
 
     public static AxPlugin getInstance() {
         return instance;
     }
 
+    @Override
+    public void load() {
+        // remove legacy libs
+        File libs = new File(getDataFolder(), "libs");
+        if (libs.exists()) {
+            com.artillexstudios.axapi.utils.file.FileUtils.deleteNested(libs.toPath());
+        }
+        File lib = new File(getDataFolder(), "lib");
+        if (lib.exists()) {
+            com.artillexstudios.axapi.utils.file.FileUtils.deleteNested(lib.toPath());
+        }
+    }
+
+    @Override
     public void enable() {
         instance = this;
 
@@ -52,8 +62,6 @@ public final class AxAFKZone extends AxPlugin {
         TickZones.start();
 
         MESSAGEUTILS = new MessageUtils(LANG.getBackingDocument(), "prefix", CONFIG.getBackingDocument());
-
-        threadedQueue = new ThreadedQueue<>("AxAFKZone-Datastore-thread");
 
         CommandManager.load();
         FileUtils.loadAll();
@@ -68,15 +76,17 @@ public final class AxAFKZone extends AxPlugin {
         if (CONFIG.getBoolean("update-notifier.enabled", true)) new UpdateNotifier();
     }
 
-    public void updateFlags() {
-        FeatureFlags.USE_LEGACY_HEX_FORMATTER.set(true);
-    }
-
+    @Override
     public void disable() {
         if (metrics != null) metrics.cancel();
         TickZones.stop();
         for (Zone zone : Zones.getZones().values()) {
             zone.disable();
         }
+    }
+
+    @Override
+    public void updateFlags() {
+        FeatureFlags.LOGGER_NAME_FORMAT.set(LoggerNameFormat.NAMEABLE);
     }
 }
