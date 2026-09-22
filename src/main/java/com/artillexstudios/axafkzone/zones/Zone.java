@@ -235,7 +235,7 @@ public class Zone {
         for (int i = 0; i < rollAmount; i++) {
             Reward sel = RandomUtils.randomValue(chances);
             rewardList.add(sel);
-            sel.run(player);
+            sel.run(player, this);
         }
 
         return rewardList;

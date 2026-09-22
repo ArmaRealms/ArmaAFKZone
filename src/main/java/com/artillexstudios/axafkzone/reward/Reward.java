@@ -1,11 +1,14 @@
 package com.artillexstudios.axafkzone.reward;
 
+import com.artillexstudios.axafkzone.api.events.PlayerRewardEvent;
+import com.artillexstudios.axafkzone.zones.Zone;
 import com.artillexstudios.axapi.scheduler.Scheduler;
-import com.artillexstudios.axapi.utils.ContainerUtils;
 import com.artillexstudios.axapi.utils.ItemBuilder;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -67,12 +70,26 @@ public class Reward {
     }
 
     public void run(Player player) {
+        run(player, null);
+    }
+
+    /** Schedules delivery and emits a PlayerRewardEvent when delivery completes. */
+    public void run(Player player, @Nullable Zone zone) {
         Scheduler.get().run(scheduledTask -> {
             for (String cmd : commands) {
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd.replace("%player%", player.getName()));
             }
+            // Deliver on the entity scheduler so inventory access is also safe on Folia.
+            Scheduler.get().run(player, task -> {
+                Location location = player.getLocation();
+                for (ItemStack item : items) {
+                    for (ItemStack leftover : player.getInventory().addItem(item.clone()).values()) {
+                        location.getWorld().dropItem(location, leftover);
+                    }
+                }
+                Bukkit.getPluginManager().callEvent(new PlayerRewardEvent(player, this, zone));
+            }, () -> {});
         });
-        ContainerUtils.INSTANCE.addOrDrop(player.getInventory(), items, player.getLocation());
     }
 
     @Override
